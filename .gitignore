@@ -1,0 +1,14 @@
+node_modules/
+dist/
+data/
+.sites-runtime/
+*.log
+test-results/
+.DS_Store
+*.sqlite
+*.sqlite-wal
+*.sqlite-shm
+qingji-*.json
+qingji-*.csv
+.env
+.env.*
