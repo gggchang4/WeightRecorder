@@ -1,32 +1,37 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { ArrowRight, CalendarDays, Check, ChevronRight, CircleHelp, Database, Download, FlaskConical, LayoutDashboard, List, LoaderCircle, Menu, Moon, Settings2, ShieldCheck, Sun, Upload, X } from 'lucide-react';
+import { Check, Database, LoaderCircle, Moon, Plus, ShieldCheck, Sun, Upload, X } from 'lucide-react';
 import type { Backup, EntryInput, Settings, Snapshot, WeightEntry, WeightRepository } from '../shared/types.ts';
 import { formatWeight, localDate } from '../shared/domain.ts';
 import { csvToEntries, entriesToCsv } from '../shared/csv.ts';
 import { DemoRepository, downloadText, localRepository } from './repository.ts';
-import { Dashboard } from './components/Dashboard.tsx';
+import { TrendView } from './components/TrendView.tsx';
 import { CalendarView } from './components/CalendarView.tsx';
 import { HistoryView } from './components/HistoryView.tsx';
-import { SettingsView } from './components/SettingsView.tsx';
+import { PreferencesView } from './components/PreferencesView.tsx';
+import { InsightsView } from './components/InsightsView.tsx';
 import { EntryModal } from './components/EntryModal.tsx';
 import { formatDay, IconButton, Modal } from './components/ui.tsx';
 
-type View = 'dashboard' | 'calendar' | 'history' | 'settings';
+type View = 'dashboard' | 'calendar' | 'history' | 'insights' | 'settings';
 type EntryEditor = { entry?: WeightEntry; date?: string } | null;
 const navItems = [
-  { key: 'dashboard', label: '趋势总览', Icon: LayoutDashboard },
-  { key: 'calendar', label: '记录日历', Icon: CalendarDays },
-  { key: 'history', label: '全部记录', Icon: List },
+  { key: 'dashboard', label: '趋势' },
+  { key: 'calendar', label: '日历' },
+  { key: 'history', label: '记录' },
+  { key: 'settings', label: '偏好' },
 ] as const;
-const titles: Record<View, string> = { dashboard: '趋势总览', calendar: '记录日历', history: '全部记录', settings: '目标与偏好' };
+const titles: Record<View, string> = { dashboard: '体重趋势', calendar: '记录日历', history: '全部记录', insights: '记录概况', settings: '偏好' };
+const routes: Record<View, string> = { dashboard: '/', calendar: '/calendar', history: '/entries', insights: '/insights', settings: '/settings' };
+function currentView(): View {
+  const hash = window.location.hash.slice(1);
+  if (['calendar', 'history', 'insights', 'settings'].includes(hash)) return hash as View;
+  return (Object.entries(routes).find(([, path]) => path === window.location.pathname.replace(/\/$/, '') || path === window.location.pathname)?.[0] as View) ?? 'dashboard';
+}
 function safeRead(key: string) { try { return localStorage.getItem(key); } catch { return null; } }
 function safeWrite(key: string, value: string) { try { localStorage.setItem(key, value); } catch { /* optional preference cache */ } }
 
 export default function App() {
-  const [view, setView] = useState<View>(() => {
-    const hash = window.location.hash.slice(1);
-    return ['calendar', 'history', 'settings'].includes(hash) ? hash as View : 'dashboard';
-  });
+  const [view, setView] = useState<View>(currentView);
   const [snapshot, setSnapshot] = useState<Snapshot | null>(null);
   const [demo, setDemo] = useState(false);
   const [error, setError] = useState('');
@@ -34,7 +39,6 @@ export default function App() {
   const [deleting, setDeleting] = useState<WeightEntry | null>(null);
   const [deleteBusy, setDeleteBusy] = useState(false);
   const [toast, setToast] = useState('');
-  const [sidebarOpen, setSidebarOpen] = useState(false);
   const [help, setHelp] = useState(false);
   const [importing, setImporting] = useState<{ backup: Backup; filename: string; isCsv: boolean } | null>(null);
   const [importBusy, setImportBusy] = useState(false);
@@ -77,10 +81,13 @@ export default function App() {
   }, [snapshot?.settings.theme]);
 
   useEffect(() => {
-    function hashChange() { const hash = window.location.hash.slice(1); setView(['calendar', 'history', 'settings'].includes(hash) ? hash as View : 'dashboard'); }
-    window.addEventListener('hashchange', hashChange);
-    return () => window.removeEventListener('hashchange', hashChange);
+    function locationChange() { setView(currentView()); }
+    if (window.location.hash) window.history.replaceState(null, '', routes[currentView()]);
+    window.addEventListener('popstate', locationChange);
+    window.addEventListener('hashchange', locationChange);
+    return () => { window.removeEventListener('popstate', locationChange); window.removeEventListener('hashchange', locationChange); };
   }, []);
+  useEffect(() => { document.title = `${titles[view]} · 轻迹`; }, [view]);
   useEffect(() => {
     function shortcut(event: KeyboardEvent) {
       const target = event.target as HTMLElement;
@@ -93,7 +100,8 @@ export default function App() {
   }, []);
 
   function navigate(next: View) {
-    setView(next); window.location.hash = next; setSidebarOpen(false);
+    setView(next);
+    if (window.location.pathname !== routes[next]) window.history.pushState(null, '', routes[next]);
     document.querySelector('.main-scroll')?.scrollTo({ top: 0, behavior: 'instant' });
   }
   async function switchSpace(nextDemo: boolean, begin = false) {
@@ -105,13 +113,13 @@ export default function App() {
       repo.current = nextRepo; setSnapshot(nextSnapshot); setDemo(nextDemo); safeWrite('qingji-space', nextDemo ? 'demo' : 'personal');
       setEditor(null); setDeleting(null); setImporting(null); setError(''); navigate('dashboard');
       if (begin) setEditor({});
-      notify(nextDemo ? '已进入示例空间；改动不会写入个人数据库' : '欢迎来到你的个人空间，记录只保存在这台电脑');
+      notify(nextDemo ? '已进入示例空间，改动仅在本次体验有效' : '已切换到个人记录');
     } catch (cause) { notify(cause instanceof Error ? cause.message : '切换失败'); }
   }
   async function refresh() { setSnapshot(await repo.current.read()); }
   async function saveEntry(input: EntryInput, id?: string) {
     if (id) await repo.current.updateEntry(id, input); else await repo.current.createEntry(input);
-    await refresh(); notify(demo ? '已保存到示例空间，本次体验有效' : id ? '记录已更新，变化都替你记住了' : '已记下今天的你');
+    await refresh(); notify(demo ? '示例记录已保存' : id ? '记录已更新' : '记录已保存');
   }
   async function saveSettings(settings: Settings) {
     await repo.current.updateSettings(settings); await refresh(); notify(demo ? '示例偏好已更新，本次体验有效' : '偏好已保存');
@@ -136,7 +144,7 @@ export default function App() {
     notify(demo ? '已导出示例数据，文件名已标注 demo' : format === 'json' ? '备份已下载，请妥善保管' : 'CSV 已导出，体重单位为 kg');
   }
   function chooseImport() {
-    if (demo) { notify('请先点击「开始我的记录」退出示例模式，再导入个人数据'); return; }
+    if (demo) { notify('请先退出示例空间，再导入个人数据'); return; }
     fileInput.current?.click();
   }
   async function readImport(file?: File) {
@@ -161,27 +169,31 @@ export default function App() {
     finally { setImportBusy(false); }
   }
   const conflicts = importing && snapshot ? importing.backup.entries.length - new Set(importing.backup.entries.map(entry => entry.date).filter(date => !snapshot.entries.some(entry => entry.date === date))).size : 0;
-  const currentTitle = titles[view];
-
-  return <div className="app-shell">
-    {sidebarOpen && <button className="sidebar-backdrop" aria-label="收起导航" onClick={() => setSidebarOpen(false)} />}
-    <aside className={`sidebar ${sidebarOpen ? 'open' : ''}`}><div className="window-dots" aria-hidden="true"><i /><i /><i /></div><a className="brand" href="#dashboard" onClick={() => navigate('dashboard')}><img src="/favicon.svg" alt="" /><span>轻迹<small>WEIGHT JOURNAL</small></span></a><div className="workspace-label"><span className={`workspace-avatar ${demo ? 'demo-avatar' : ''}`}>{demo ? <FlaskConical size={17} /> : '我'}</span><div><strong>{demo ? '示例空间' : `${snapshot?.settings.displayName ?? '我的'}${snapshot?.settings.displayName === '我的' || !snapshot ? '' : '的'}空间`}</strong><small>{demo ? '先体验，再开始' : '只属于你的身体日记'}</small></div><ChevronRight size={14} /></div>
-      <div className="nav-section-label">日常记录</div><nav aria-label="主导航">{navItems.map(({ key, label, Icon }) => <button key={key} className={`nav-item ${view === key ? 'active' : ''}`} aria-current={view === key ? 'page' : undefined} onClick={() => navigate(key)}><Icon size={19} strokeWidth={1.7} /><span>{label}</span>{key === 'history' && snapshot && snapshot.entries.length > 0 && <small>{snapshot.entries.length}</small>}</button>)}</nav><div className="nav-section-label personal-label">为你而设</div><button className={`nav-item ${view === 'settings' ? 'active' : ''}`} aria-current={view === 'settings' ? 'page' : undefined} onClick={() => navigate('settings')}><Settings2 size={19} strokeWidth={1.7} /><span>目标与偏好</span></button>
-      <div className="sidebar-space" /><div className="sidebar-quote"><span className="quote-line" /><p>不赶时间，<br />只记录自己的节奏。</p><small>A LITTLE, EVERY DAY.</small></div><button className="sidebar-backup" onClick={() => exportData('json')} disabled={!snapshot}><span className="backup-icon"><Download size={17} /></span><span><strong>为记录留一份备份</strong><small>随时带走，安心保存</small></span><ChevronRight size={13} /></button><div className="sidebar-footer"><div><span className="status-dot" /><span>{error ? '等待连接' : demo ? '示例数据 · 独立体验' : '数据仅存于本机'}</span><ShieldCheck size={12} /></div><button onClick={() => setHelp(true)} aria-label="关于轻迹"><CircleHelp size={16} /></button></div>
-    </aside>
-    <main className="main-panel"><header className="topbar"><div className="breadcrumbs"><IconButton label="展开导航" onClick={() => setSidebarOpen(true)}><Menu size={18} /></IconButton><span>{demo ? '示例空间' : '个人空间'}</span><ChevronRight size={12} /><strong>{currentTitle}</strong></div><div className="topbar-actions"><span className="local-badge"><ShieldCheck size={13} />本地优先，安心记录</span><span className="topbar-divider" /><IconButton label="切换浅色或深色外观" onClick={() => void toggleTheme()}><Sun size={17} className="show-in-dark" /><Moon size={17} className="show-in-light" /></IconButton><button className="profile-avatar" aria-label="打开个人偏好" onClick={() => navigate('settings')}>{demo ? '轻' : snapshot?.settings.displayName === '我的' ? '我' : snapshot?.settings.displayName.slice(0, 1) ?? '我'}</button></div></header>
-      <div className="main-scroll"><div className="content-container">{snapshot && <div className={`space-banner ${demo ? 'demo-banner' : 'personal-banner'}`}><div>{demo ? <FlaskConical size={15} /> : <ShieldCheck size={15} />}<span>{demo ? <><strong>先感受一下，记录的样子。</strong><span className="banner-detail"> 你正在浏览独立示例，数据不会混入个人记录。</span></> : <><strong>这是你的私人记录空间。</strong><span className="banner-detail"> 一点点积累，慢慢看见变化。</span></>}</span></div><button onClick={() => void switchSpace(!demo, demo)}>{demo ? '开始我的记录' : '体验示例'}<ArrowRight size={14} /></button></div>}
+  return <div className="app-shell" data-view={view}>
+    <a className="skip-link" href="#main-content">跳转到内容</a>
+    <header className="masthead">
+      <a className="brand" href="/" aria-label="轻迹，返回体重趋势" onClick={event => { if (!event.metaKey && !event.ctrlKey && !event.shiftKey && !event.altKey) { event.preventDefault(); navigate('dashboard'); } }}>
+        <svg width="44" height="30" viewBox="0 0 56 36" fill="none" aria-hidden="true"><path d="M2 20c8 0 9-17 17-17s10 29 19 29 9-15 15-15" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"/><circle cx="53" cy="17" r="2.8" fill="currentColor"/></svg><span>轻迹</span>
+      </a>
+      <nav className="primary-nav" aria-label="主导航">{navItems.map(({ key, label }) => <a key={key} href={routes[key]} className={view === key || (key === 'dashboard' && view === 'insights') ? 'active' : ''} aria-current={view === key ? 'page' : undefined} onClick={event => { if (!event.metaKey && !event.ctrlKey && !event.shiftKey && !event.altKey) { event.preventDefault(); navigate(key); } }}>{label}</a>)}</nav>
+      <div className="header-actions">
+        {snapshot && <button className="space-switch" aria-label={demo ? '退出示例，开始我的记录' : '浏览示例数据'} title={demo ? '示例改动不会写入个人数据库，点击开始自己的记录' : '体验独立的示例数据'} onClick={() => void switchSpace(!demo, demo)}><span className={demo ? 'demo-dot' : 'local-dot'} />{demo ? '示例' : '本机'}</button>}
+        <IconButton label="切换浅色或深色外观" onClick={() => void toggleTheme()}><Sun size={17} className="show-in-dark" /><Moon size={17} className="show-in-light" /></IconButton>
+        <button className="button primary header-record" aria-label="记录体重" disabled={!snapshot} onClick={() => setEditor({})}><Plus size={16}/><span>记录体重</span></button>
+      </div>
+    </header>
+    <main id="main-content" className="main-scroll" aria-label={titles[view]}><div className={`content-container ${view === 'dashboard' ? 'home-container' : ''}`}>
       {error ? <div className="connection-error"><Database size={35} /><h1>暂时没有连接到本地服务</h1><p>{error}</p><button className="button primary" onClick={() => void load()}>重新连接</button><small>运行「启动轻迹.cmd」或 pnpm start 后，再试一次。</small></div> : !snapshot ? <div className="app-loading"><LoaderCircle size={26} className="spin" /><p>正在打开你的私人记录空间…</p></div> : <>
-        {view === 'dashboard' && <Dashboard snapshot={snapshot} onAdd={() => setEditor({})} onEdit={entry => setEditor({ entry })} onDelete={setDeleting} onHistory={() => navigate('history')} onSettings={() => navigate('settings')} onDate={date => setEditor({ date })} />}
+        {view === 'dashboard' && <TrendView snapshot={snapshot} onAdd={() => setEditor({})} onInsights={() => navigate('insights')} onHistory={() => navigate('history')} onSettings={() => navigate('settings')} />}
         {view === 'calendar' && <CalendarView snapshot={snapshot} onDate={date => setEditor({ date })} onEdit={entry => setEditor({ entry })} onDelete={setDeleting} />}
         {view === 'history' && <HistoryView snapshot={snapshot} onAdd={() => setEditor({})} onEdit={entry => setEditor({ entry })} onDelete={setDeleting} onExport={() => exportData('csv')} />}
-        {view === 'settings' && <SettingsView key={`${demo}-${snapshot.settings.theme}-${snapshot.settings.unit}`} settings={snapshot.settings} demo={demo} onSave={saveSettings} onExport={exportData} onImport={chooseImport} />}
-      </>}<footer className="main-footer"><span>轻迹 <span>·</span> 让变化，有迹可循。</span><span>LOCAL FIRST <i /> MADE FOR YOU</span></footer></div></div>
-    </main>
+        {view === 'insights' && <InsightsView snapshot={snapshot} onDate={date => setEditor({ date })} onSettings={() => navigate('settings')} />}
+        {view === 'settings' && <PreferencesView key={demo ? 'demo' : 'personal'} settings={snapshot.settings} demo={demo} onSave={saveSettings} onExport={exportData} onImport={chooseImport} onAbout={() => setHelp(true)} />}
+      </>}</div></main>
     {editor && snapshot && <EntryModal {...editor} entries={snapshot.entries} unit={snapshot.settings.unit} onSave={saveEntry} onClose={() => setEditor(null)} />}
-    {deleting && snapshot && <Modal title="删除这条记录？" eyebrow="A SMALL CHANGE TO YOUR JOURNAL" onClose={() => { if (!deleteBusy) setDeleting(null); }} className="small-modal"><p className="confirmation-text">将删除 <strong>{formatDay(deleting.date, { year: 'numeric', month: 'long', day: 'numeric' })}</strong> 的 <strong>{formatWeight(deleting.weightKg, snapshot.settings.unit)} {snapshot.settings.unit}</strong> 记录及随记。趋势会同步更新。</p><div className="modal-actions"><button className="button secondary" disabled={deleteBusy} onClick={() => setDeleting(null)}>保留记录</button><button className="button danger" disabled={deleteBusy} onClick={() => void removeEntry()}>{deleteBusy ? <LoaderCircle size={16} className="spin" /> : <X size={16} />}确认删除</button></div></Modal>}
-    {importing && <Modal title="把记录带回轻迹" eyebrow="IMPORT YOUR JOURNAL" onClose={() => { if (!importBusy) setImporting(null); }} className="small-modal"><p className="confirmation-text">即将从 <strong>{importing.filename}</strong> 导入数据。</p><div className="import-preview"><div><strong>{importing.backup.entries.length}</strong><span>文件内记录</span></div><div><strong>{importing.backup.entries.length - conflicts}</strong><span>将新增记录</span></div><div><strong>{conflicts}</strong><span>重复日期跳过</span></div></div><p className="inline-note"><ShieldCheck size={17} />同日期保留已有记录。{importing.isCsv ? 'CSV 导入会保留当前个人设置。' : '导入后恢复备份中的个人偏好。'}全部数据通过校验后才会写入。</p>{importError && <p className="form-error" role="alert">{importError}</p>}<div className="modal-actions"><button className="button secondary" disabled={importBusy} onClick={() => setImporting(null)}>取消</button><button className="button primary" disabled={importBusy} onClick={() => void confirmImport()}>{importBusy ? <LoaderCircle className="spin" size={16} /> : <Upload size={16} />}{importBusy ? '正在导入…' : '确认导入'}</button></div></Modal>}
-    {help && <Modal title="轻迹，陪你慢慢记录。" eyebrow="QINGJI · VERSION 1.0" onClose={() => setHelp(false)} className="small-modal"><div className="about-content"><img src="/favicon.svg" alt="轻迹标志" /><p>一个安静、私密的本地体重日记。记录保存在项目的 <code>data/weight-recorder.sqlite</code> 中，与浏览器缓存无关。</p><p>按 <kbd>N</kbd> 快速记录体重，按 <kbd>Esc</kbd> 关闭弹窗。图表的虚线是过去 7 个自然日内实测值的平均数，缺失日期不补值。</p><p>示例空间的数据仅存在内存，刷新会重置。个人空间的数据会持续保存；完整备份可以在「目标与偏好」中导入。</p><button className="button primary" onClick={() => setHelp(false)}>知道了 <Check size={16} /></button></div></Modal>}
+    {deleting && snapshot && <Modal title="删除这条记录？" onClose={() => { if (!deleteBusy) setDeleting(null); }} className="small-modal"><p className="confirmation-text">将删除 <strong>{formatDay(deleting.date, { year: 'numeric', month: 'long', day: 'numeric' })}</strong> 的 <strong>{formatWeight(deleting.weightKg, snapshot.settings.unit)} {snapshot.settings.unit}</strong> 记录及随记。趋势会同步更新。</p><div className="modal-actions"><button className="button secondary" disabled={deleteBusy} onClick={() => setDeleting(null)}>保留记录</button><button className="button danger" disabled={deleteBusy} onClick={() => void removeEntry()}>{deleteBusy ? <LoaderCircle size={16} className="spin" /> : <X size={16} />}确认删除</button></div></Modal>}
+    {importing && <Modal title="导入记录" onClose={() => { if (!importBusy) setImporting(null); }} className="small-modal"><p className="confirmation-text">即将从 <strong>{importing.filename}</strong> 导入数据。</p><div className="import-preview"><div><strong>{importing.backup.entries.length}</strong><span>文件内记录</span></div><div><strong>{importing.backup.entries.length - conflicts}</strong><span>将新增记录</span></div><div><strong>{conflicts}</strong><span>重复日期跳过</span></div></div><p className="inline-note"><ShieldCheck size={17} />同日期保留已有记录。{importing.isCsv ? 'CSV 导入会保留当前个人设置。' : '导入后恢复备份中的个人偏好。'}全部数据通过校验后才会写入。</p>{importError && <p className="form-error" role="alert">{importError}</p>}<div className="modal-actions"><button className="button secondary" disabled={importBusy} onClick={() => setImporting(null)}>取消</button><button className="button primary" disabled={importBusy} onClick={() => void confirmImport()}>{importBusy ? <LoaderCircle className="spin" size={16} /> : <Upload size={16} />}{importBusy ? '正在导入…' : '确认导入'}</button></div></Modal>}
+    {help && <Modal title="关于轻迹" onClose={() => setHelp(false)} className="small-modal"><div className="about-content"><img src="/favicon.svg" alt="轻迹标志" /><p>本地体重记录工具。记录保存在 <code>data/weight-recorder.sqlite</code> 中，与浏览器缓存无关。</p><p>按 <kbd>N</kbd> 记录体重，按 <kbd>Esc</kbd> 关闭弹窗。图表的虚线是过去 7 个自然日内实测值的平均数，缺失日期不补值。</p><p>示例空间的数据仅存在内存，刷新会重置。个人记录会持续保存，可在“偏好”的数据分区导出和导入备份。</p><button className="button primary" onClick={() => setHelp(false)}>完成</button></div></Modal>}
     <input className="sr-only" tabIndex={-1} type="file" ref={fileInput} accept=".json,.csv,application/json,text/csv" aria-label="导入轻迹备份或 CSV" onChange={event => void readImport(event.target.files?.[0])} />
     {pendingFile && <div className="toast" role="status"><LoaderCircle className="spin" size={16} />正在读取文件…</div>}
     {toast && <div className="toast" role="status"><span className="toast-check"><Check size={13} /></span><span>{toast}</span><button aria-label="关闭提示" onClick={() => setToast('')}><X size={14} /></button></div>}

@@ -1,0 +1,14 @@
+import type { Snapshot } from '../../shared/types.ts';
+import { formatWeight, localDate, shiftDate, summarize } from '../../shared/domain.ts';
+import { formatDay } from './ui.tsx';
+
+export function InsightsView({ snapshot, onDate, onSettings }: { snapshot: Snapshot; onDate: (date: string) => void; onSettings: () => void }) {
+  const { entries, settings } = snapshot;
+  const today = localDate();
+  const stats = summarize(entries, settings, today);
+  const oldest = shiftDate(today, -84);
+  const offset = (new Date(`${oldest}T12:00:00Z`).getUTCDay() + 6) % 7;
+  const dates = Array.from({ length: 91 }, (_, index) => shiftDate(oldest, index - offset));
+  const measuredDates = new Set(entries.map(entry => entry.date));
+  return <div className="secondary-page insights-page"><header className="page-heading"><div><h1>记录概况</h1><p>{stats.first ? `从 ${formatDay(stats.first.date, { year: 'numeric', month: 'long', day: 'numeric' })} 开始` : '记录体重后，可在这里查看统计。'}</p></div></header><dl className="insights-metrics"><div><dt>近7日均值</dt><dd>{formatWeight(stats.latestAvg, settings.unit)}<small>{settings.unit}</small></dd></div><div><dt>累计变化</dt><dd>{stats.totalChange == null ? '—' : `${stats.totalChange < 0 ? '−' : stats.totalChange > 0 ? '+' : ''}${formatWeight(Math.abs(stats.totalChange), settings.unit)}`}<small>{settings.unit}</small></dd></div><div><dt>连续记录</dt><dd>{stats.streak}<small>天</small></dd></div><div><dt>近30天已记录</dt><dd>{stats.coverage}<small>天</small></dd></div></dl><div className="insights-details"><section className="record-habit"><div className="section-heading"><h2>最近13周</h2><span>点选日期查看或补记</span></div><div className="habit-grid">{dates.map(date => <button key={date} disabled={date > today} className={`${measuredDates.has(date) ? 'recorded' : ''} ${date === today ? 'today' : ''}`} aria-label={`${date} ${measuredDates.has(date) ? '已记录，查看' : '未记录，补记'}`} title={`${date} ${measuredDates.has(date) ? '已记录' : '未记录'}`} onClick={() => onDate(date)}/>)}</div><div className="habit-legend"><span><i/>未记录</span><span><i className="recorded"/>已记录</span></div></section><section className="goal-detail"><div className="section-heading"><h2>目标</h2><button className="text-button" onClick={onSettings}>编辑目标</button></div><div className="goal-reading">{formatWeight(settings.targetWeightKg, settings.unit)}<span>{settings.unit}</span></div><div className="goal-track" role="progressbar" aria-label="目标进度" aria-valuenow={Math.round(stats.progress)} aria-valuemin={0} aria-valuemax={100}><span style={{ width: `${stats.progress}%` }}/></div><div className="goal-caption"><span>起点 {formatWeight(stats.first?.weightKg, settings.unit)}</span><span>{settings.targetWeightKg == null ? '未设置目标' : `已完成 ${Math.round(stats.progress)}%`}</span></div><p>{stats.distance != null ? `与目标相差 ${formatWeight(stats.distance, settings.unit)} ${settings.unit}` : '在偏好中设定你自己的目标。'}</p></section></div></div>;
+}

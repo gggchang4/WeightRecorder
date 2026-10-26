@@ -20,6 +20,10 @@ flowchart LR
 
 `shared/types.ts` 定义数据和异步仓储接口；`shared/domain.ts` 不依赖 React、HTTP 或 SQLite。服务端 `SqliteStore` 是独立存储适配器，API 负责输入校验和错误映射。示例适配器没有访问个人数据库的路径。
 
+## 界面导航
+
+`/` 为趋势画布，`/calendar`、`/entries`、`/insights`、`/settings` 分别承载日历、记录、概况与偏好。页面按当前路径独立渲染，通过 History API 保留浏览器前进与后退，兼容原版 hash 链接；生产服务回退到前端入口以支持直接打开页面。图表代码单独延迟加载。偏好页的个人、外观、数据和接口一次只挂载当前分区。
+
 ## 数据约定
 
 每个本地自然日最多一条记录：

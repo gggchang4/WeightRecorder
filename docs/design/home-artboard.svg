@@ -1,0 +1,24 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="1000" viewBox="0 0 1600 1000">
+  <rect width="1600" height="1000" fill="#fbfbfc"/>
+  <g font-family="Segoe UI, Microsoft YaHei UI, sans-serif" fill="#25282f">
+    <g transform="translate(74 45)"><path d="M0 19c8 0 9-17 17-17s11 28 19 28 9-14 16-14" fill="none" stroke="#7774c7" stroke-width="2.6" stroke-linecap="round"/><circle cx="52" cy="16" r="3" fill="#7774c7"/><text x="70" y="25" font-size="25" font-weight="450" letter-spacing="3">轻迹</text></g>
+    <rect x="620" y="35" width="360" height="50" rx="25" fill="#f0f1f4"/>
+    <rect x="626" y="41" width="84" height="38" rx="19" fill="#fff"/>
+    <text x="668" y="65" text-anchor="middle" font-size="14">趋势</text><text x="756" y="65" text-anchor="middle" font-size="14" fill="#777c86">日历</text><text x="844" y="65" text-anchor="middle" font-size="14" fill="#777c86">记录</text><text x="932" y="65" text-anchor="middle" font-size="14" fill="#777c86">偏好</text>
+    <text x="1300" y="65" font-size="12" fill="#777c86">示例空间</text><rect x="1398" y="36" width="126" height="48" rx="24" fill="#25282f"/><path d="M1422 60h12m-6-6v12" stroke="#fff" stroke-width="1.5" stroke-linecap="round"/><text x="1449" y="65" font-size="14" fill="#fff">记录体重</text>
+    <text x="96" y="179" font-size="27" font-weight="450">体重</text>
+    <text x="96" y="216" font-size="13" fill="#777c86">9月27日 — 10月26日</text>
+    <text x="96" y="279" font-size="31" font-weight="350" letter-spacing="-1">−1.7<tspan font-size="14" letter-spacing="0" dx="7">kg</tspan></text><text x="96" y="306" font-size="12" fill="#777c86">这段时间的变化</text>
+    <g font-size="13" fill="#777c86"><rect x="1190" y="156" width="334" height="42" rx="21" fill="#f0f1f4"/><text x="1230" y="182" text-anchor="middle">7天</text><rect x="1267" y="161" width="84" height="32" rx="16" fill="#fff"/><text x="1309" y="182" fill="#25282f" text-anchor="middle">30天</text><text x="1393" y="182" text-anchor="middle">90天</text><text x="1475" y="182" text-anchor="middle">全部</text></g>
+    <g stroke="#e7e9ee" stroke-width="1"><path d="M96 374h1020M96 530h1020M96 686h1020"/></g>
+    <g font-size="11" fill="#9398a2"><text x="98" y="363">75.0</text><text x="98" y="519">74.0</text><text x="98" y="675">73.0</text></g>
+    <path d="M120 398C144 406 153 447 186 451S220 414 254 435 296 486 330 476 380 468 407 492 450 512 487 500 533 518 566 541 596 527 628 536 673 583 705 572 748 543 775 555 820 590 853 579 894 618 922 606 961 647 989 639 1031 626 1058 649 1093 664 1116 665" fill="none" stroke="#7774c7" stroke-width="2.8" stroke-linecap="round"/>
+    <path d="M120 412C214 434 243 449 330 464S443 493 514 510 601 531 671 550 770 562 853 583 963 614 1116 650" fill="none" stroke="#b4b7c1" stroke-width="1.2" stroke-dasharray="5 6"/>
+    <circle cx="1116" cy="665" r="15" fill="#7774c7" fill-opacity=".08"/><circle cx="1116" cy="665" r="5" fill="#7774c7" stroke="#fbfbfc" stroke-width="2"/>
+    <text x="1180" y="681" font-size="104" font-weight="300" letter-spacing="-6">72.9</text><text x="1412" y="682" font-size="19" fill="#777c86">kg</text><text x="1188" y="723" font-size="13" fill="#777c86">最近记录</text><text x="1262" y="723" font-size="13">10月25日</text>
+    <g font-size="12" fill="#8b909a"><text x="120" y="801">9/27</text><text x="390" y="801">10/5</text><text x="660" y="801">10/13</text><text x="940" y="801">10/21</text><text x="1116" y="801" text-anchor="end">10/26</text></g>
+    <g font-size="12"><circle cx="101" cy="869" r="3" fill="#7774c7"/><text x="116" y="873" fill="#777c86">实测体重</text><path d="M228 869h18" stroke="#a5a9b4" stroke-width="1.3" stroke-dasharray="4 4"/><text x="255" y="873" fill="#777c86">7日均值</text><text x="440" y="873" fill="#a3a7af">74次记录</text><text x="1315" y="873" fill="#777c86">查看记录</text><text x="1440" y="873" fill="#777c86">调整目标</text></g>
+    <path d="M96 923h1428" stroke="#eceef2"/>
+    <text x="96" y="959" font-size="11" fill="#a1a5ad">轻迹</text><text x="1524" y="959" text-anchor="end" font-size="11" fill="#a1a5ad">界面设计示例，数据仅用于展示</text>
+  </g>
+</svg>
